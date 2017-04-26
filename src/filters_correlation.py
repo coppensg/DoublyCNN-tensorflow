@@ -37,22 +37,24 @@ def avg_max_k_translation_correlation(k, W):
 
     :param k: maximum translation in x-axis and y-axis
     :param W: array like (nb_filters, depth, width, height), filters of a layer
-    :return: Average maximum k-translation correlation on W
+    :return: Average maximum k-translation correlation on W, standard deviation on maximum k-translation correlation on W
     '''
     nb_filters, _, _, _ = W.shape
     avg_rho_k = 0
 
+    rho_k_list = []
     for i in range(nb_filters):
         rho_k_max = 0
         for j in range(nb_filters):
             if i == j:
                 continue
             rho_k = k_translation_correlation(k, W[i], W[j])
+            rho_k_list.append(rho_k)
             if rho_k > rho_k_max:
                 rho_k_max = rho_k
         avg_rho_k += rho_k_max
 
-    return avg_rho_k/nb_filters
+    return avg_rho_k/nb_filters, np.std(rho_k_list)
 
 
 if __name__ == '__main__':
@@ -68,6 +70,6 @@ if __name__ == '__main__':
     rho1 = k_translation_correlation(3, W[0], W[1])
     print rho1
 
-    avg_rho_1 = avg_max_k_translation_correlation(1,W)
-    print avg_rho_1
+    avg_rho_1, std_rho_1 = avg_max_k_translation_correlation(1,W)
+    print avg_rho_1, std_rho_1
 
