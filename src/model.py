@@ -58,9 +58,6 @@ def double_conv_layer(x, filter_shape,
         W_meta = init_weights(filter_shape, name="W_meta")
         b_meta = init_biases(bias_const, [num_filters], name="b_meta")
 
-        tf.set_random_seed(123) # todo voir si c'est utile
-
-
         filter = tf.reshape(tf.Variable(tf.diag(tf.ones(numpy.prod(W_shape[0:3])))),
                             W_shape[0:3]+[numpy.prod(W_shape[0:3]),])
         W_meta = tf.transpose(W_meta, perm=[3,0,1,2])
@@ -103,7 +100,6 @@ class Model:
         conv_type,
         kernel_size,
         kernel_pool_size,
-        keep_prob,
     ):
         """
         Create instance of a Convolutional Neural Network model
@@ -167,7 +163,7 @@ class Model:
             elif len(filter_shape[l]) == 2:
                 s = filter_shape[l][0]
                 cur_layer = tf.nn.max_pool(cur_layer, [1, s, s, 1], strides=[1, s, s, 1], padding='SAME', name='Pool_{}'.format(l))
-                cur_layer = tf.nn.dropout(cur_layer, keep_prob, name='Dropout_{}'.format(l))
+                cur_layer = tf.nn.dropout(cur_layer, keep_prob=self.keep_prob, name='Dropout_{}'.format(l))
             else:
                 raise NotImplementedError
 
