@@ -2,9 +2,9 @@ import tensorflow as tf
 import numpy
 
 
-def init_weights(mean, var, shape, name="W"):
+def init_weights(shape, name="W"):
     return tf.get_variable(name=name, shape=shape,
-                           initializer=tf.random_normal_initializer(mean, var))
+                           initializer=tf.contrib.layers.xavier_initializer(uniform=True))
 
 
 def init_biases(constant, shape, name="b"):
@@ -14,12 +14,11 @@ def init_biases(constant, shape, name="b"):
 
 def simple_conv_layer(x, filter_shape, strides=[1, 1, 1, 1], padding='SAME', name="CNN2D"):
     # todo voir comment initialiser les params
-    bias_const = 0.1
-    w_mean = 0.
-    w_var = 0.1
+    bias_const = 0
+
     with tf.variable_scope(name):
         # Define weight and bias shapes and initialize them
-        W = init_weights(w_mean, w_var, filter_shape, name='W')
+        W = init_weights(filter_shape, name='W')
         bias = init_biases(bias_const, [filter_shape[3]], name='b')
 
         # Apply convolution
@@ -31,12 +30,12 @@ def simple_conv_layer(x, filter_shape, strides=[1, 1, 1, 1], padding='SAME', nam
 
 def fully_connected_layer(x, num_class, name="FCL"):
     # todo voir comment initialiser les params
-    bias_const = 0.1
-    w_mean = 0.
-    w_var = 0.1
+    bias_const = 0
+    W_fully_connected_const = 0
     with tf.variable_scope(name):
         dim = x.get_shape()[1].value  # number of channels
-        W = init_weights(w_mean, w_var, shape=[dim, num_class], name='W')
+        # W = init_weights(shape=[dim, num_class], name='W') # default in layers.DenseLayer is Glorotuniform
+        W = tf.get_variable(name="W_fully_connected", shape=[dim, num_class], initializer=tf.constant_initializer(W_fully_connected_const)) # Initialized with constant 0. in the code line 187
         b = init_biases(bias_const, [num_class], name='b')
         return tf.add(tf.matmul(x, W), b, name=name)
 
@@ -49,8 +48,6 @@ def double_conv_layer(x, filter_shape,
 
     with tf.variable_scope(name):
         bias_const = 0.1
-        w_mean = 0.
-        w_var = 0.1
 
         filter_offset = filter_size - kernel_size + 1
         n_times = filter_offset ** 2
@@ -58,11 +55,8 @@ def double_conv_layer(x, filter_shape,
         # sub filter W
         W_shape = [kernel_size, kernel_size, filter_depth, num_filters * n_times]
 
-        W_meta = init_weights(w_mean, w_var, filter_shape, name="W_meta")
+        W_meta = init_weights(filter_shape, name="W_meta")
         b_meta = init_biases(bias_const, [num_filters], name="b_meta")
-
-        tf.set_random_seed(123) # todo voir si c'est utile
-
 
         filter = tf.reshape(tf.Variable(tf.diag(tf.ones(numpy.prod(W_shape[0:3])))),
                             W_shape[0:3]+[numpy.prod(W_shape[0:3]),])
@@ -106,7 +100,6 @@ class Model:
         conv_type,
         kernel_size,
         kernel_pool_size,
-        keep_prob,
     ):
         """
         Create instance of a Convolutional Neural Network model
@@ -144,7 +137,8 @@ class Model:
 
         self.keep_prob = tf.placeholder(tf.float32)  # include keep_prob in feed_dict
 
-        ### build every layers defined in filter_shape ########################################################
+        
+        ### Build every layers defined in filter_shape ########################################################
         for l in range(self.n_layers):
 
             # Convolutional layer case
@@ -169,7 +163,7 @@ class Model:
             elif len(filter_shape[l]) == 2:
                 s = filter_shape[l][0]
                 cur_layer = tf.nn.max_pool(cur_layer, [1, s, s, 1], strides=[1, s, s, 1], padding='SAME', name='Pool_{}'.format(l))
-                cur_layer = tf.nn.dropout(cur_layer, keep_prob, name='Dropout_{}'.format(l))
+                cur_layer = tf.nn.dropout(cur_layer, keep_prob=self.keep_prob, name='Dropout_{}'.format(l))
             else:
                 raise NotImplementedError
 
@@ -177,7 +171,9 @@ class Model:
 
         ########################################################################################################
 
+        
         ### Global Average Pooling #############################################################################
+
         ########################################################################################################
 
 
@@ -187,6 +183,8 @@ class Model:
         fc_input_size = int(cur_layer.get_shape()[1]*cur_layer.get_shape()[2]*cur_layer.get_shape()[3])
         flatten = tf.reshape(cur_layer, [-1, fc_input_size])
         self.logits = fully_connected_layer(flatten, num_class, name="FCL")
+        ########################################################################################################
+
         self.probs = tf.nn.softmax(self.logits)
 
         self.loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.targets))

@@ -32,7 +32,7 @@ def parseArgs():
     parser.add_argument('-train_on_valid', type=int, default=1)
     parser.add_argument('-conv_type', type=str, default='standard') # standard
     parser.add_argument('-learning_decay', type=numpy.float32, default=0.5)
-    parser.add_argument('-dropout_rate', type=str, default=0.5)
+    parser.add_argument('-keep_prob', type=str, default=0.5)
     parser.add_argument('-save_dir', type=str, default='../save')
     parser.add_argument('--path_log', type=str, default='../logs')
 
@@ -91,7 +91,7 @@ def train(args):
     load_model = opt['load_model']
     save_model = opt['save_model']
     conv_type = opt['conv_type']
-    dropout_rate = opt['dropout_rate']
+    keep_prob = opt['keep_prob']
     learning_decay = opt['learning_decay']
     path_log = opt['path_log']
 
@@ -111,7 +111,7 @@ def train(args):
      (test_x, test_y, test_num),
      num_class, image_shape] = load_normalize_data(dataset)
 
-    model = Model(image_shape, filter_shape, num_class, conv_type, kernel_size, kernel_pool_size, dropout_rate)
+    model = Model(image_shape, filter_shape, num_class, conv_type, kernel_size, kernel_pool_size)
 
     # todo add the option to load and save a model
 
@@ -156,7 +156,7 @@ def train(args):
 
                 feed = {model.inputs: train_batch_x,
                         model.targets: train_batch_y,
-                        model.keep_prob: dropout_rate}
+                        model.keep_prob: keep_prob}
                 _ = sess.run([model.train_op], feed)
 
                 feed = {model.inputs: train_batch_x,
