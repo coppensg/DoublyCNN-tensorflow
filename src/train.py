@@ -22,19 +22,20 @@ def parseArgs():
     parser.add_argument('-dataset', type=str, default='cifar10')
     parser.add_argument('-train_epochs', type=int, default=150)
     parser.add_argument('-patience', type=int, default=10)
-    parser.add_argument('-lr', type=numpy.float32, default=1e0)
-    parser.add_argument('-filter_shape', type=Shape, nargs='+', default=[(64, 7, 7), (2, 2)])
-    parser.add_argument('-kernel_size', type=int, default=5)
+    parser.add_argument('-lr', type=numpy.float32, default=0.1)
+    parser.add_argument('-filter_shape', type=Shape, nargs='+', default=[(64, 3, 3), (2, 2)])
+    parser.add_argument('-kernel_size', type=int, default=3)
     parser.add_argument('-kernel_pool_size', type=int, default=-1)
     parser.add_argument('-batch_size', type=int, default=200)
     parser.add_argument('-load_model', type=int, default=0)
     parser.add_argument('-save_model', type=str, default='model.ckpt')
     parser.add_argument('-train_on_valid', type=int, default=1)
-    parser.add_argument('-conv_type', type=str, default='double') # standard
+    parser.add_argument('-conv_type', type=str, default='standard') # standard
     parser.add_argument('-learning_decay', type=numpy.float32, default=0.5)
     parser.add_argument('-keep_prob', type=str, default=0.5)
     parser.add_argument('-save_dir', type=str, default='../save')
     parser.add_argument('-path_log', type=str, default='../logs')
+    parser.add_argument('-use_log', type=int, default=1)
 
     args = parser.parse_args()
     # Save config
@@ -104,6 +105,7 @@ def train(args):
     keep_prob = opt['keep_prob']
     learning_decay = opt['learning_decay']
     path_log = opt['path_log']
+    use_log = opt['use_log']
 
     # Save or load the model
     if save_model is not 'none':
@@ -125,7 +127,7 @@ def train(args):
 
 
     n_train_batches = train_num/ batch_size
-    # n_train_batches = 200/batch_size
+    #n_train_batches = 20/batch_size
     n_valid_batches = valid_num/ batch_size
     n_test_batches = test_num/ batch_size
 
@@ -143,8 +145,10 @@ def train(args):
 
 
     with tf.Session() as sess:
-        file_writer = tf.summary.FileWriter(path_log, sess.graph)
-        # tensorboard --logdir=path/to/logs
+        if use_log:
+            train_writer = tf.summary.FileWriter(path_log + '/train', sess.graph)
+            valid_writer = tf.summary.FileWriter(path_log + '/valid')
+            # tensorboard --logdir=path/to/logs
 
         saver = tf.train.Saver()
 
@@ -187,13 +191,21 @@ def train(args):
                         model.targets: train_batch_y,
                         model.keep_prob: 1.}
                 train_loss, train_err = sess.run([model.loss, model.err], feed)
-
                 cur_costs.append(train_loss)
                 cur_errors.append(train_err)
 
-            # todo add to tensorboard
-            train_errors.append(numpy.mean(cur_errors))
-            train_costs.append(numpy.mean(cur_costs))
+            loss = numpy.mean(cur_costs)
+            err = numpy.mean(cur_errors)
+
+            # used in tensorboard
+            if use_log:
+                summary = tf.Summary(value=[tf.Summary.Value(tag="loss", simple_value=loss)])
+                train_writer.add_summary(summary, epoch)
+                summary = tf.Summary(value=[tf.Summary.Value(tag="error", simple_value=err)])
+                train_writer.add_summary(summary, epoch)
+
+            train_errors.append(err)
+            train_costs.append(loss)
 
             # compute validation loss and err
             cur_costs = []
@@ -208,12 +220,23 @@ def train(args):
                 cur_costs.append(valid_loss)
                 cur_errors.append(valid_err)
 
-            # todo add to tensorboard
-            valid_errors.append(numpy.mean(cur_errors))
-            valid_costs.append(numpy.mean(cur_costs))
+            loss = numpy.mean(cur_costs)
+            err = numpy.mean(cur_errors)
+
+            # used in tensorboard
+            if use_log:
+                summary = tf.Summary(value=[tf.Summary.Value(tag="loss", simple_value=loss)])
+                valid_writer.add_summary(summary, epoch)
+                summary = tf.Summary(value=[tf.Summary.Value(tag="error", simple_value=err)])
+                valid_writer.add_summary(summary, epoch)
+
+
+            valid_errors.append(err)
+            valid_costs.append(loss)
 
 
             # compute test loss and err for best model
+            # take 22s too long
             cur_errors = []
             for batch in range(n_test_batches):
                 test_batch_x = test_x[batch * batch_size:(batch + 1) * batch_size]
@@ -223,9 +246,9 @@ def train(args):
                         model.keep_prob: 1.}
                 test_err = sess.run([model.err], feed)
                 cur_errors.append(test_err)
-
-            # todo add to tensorboard
-            test_errors.append(numpy.mean(cur_errors))
+            #
+            # # todo add to tensorboard
+            # test_errors.append(numpy.mean(cur_errors))
 
             # keep best model and reduce learning rate if necessary
             if valid_errors[-1] <= best_valid_err:
@@ -260,7 +283,9 @@ def train(args):
         # todo add visialisation of the weights
 
         print ">> tensorboard --logdir={}".format(path_log)
-        file_writer.close()
+        if use_log:
+            train_writer.close()
+            valid_writer.close()
 
 if __name__ == '__main__':
     args = parseArgs()
