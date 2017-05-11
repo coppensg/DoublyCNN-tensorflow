@@ -44,7 +44,7 @@ def double_conv_layer(x, filter_shape,
                       kernel_size=3, kernel_pool_size=1,
                       nonlinearity=tf.nn.relu, padding='SAME', name='double_conv_layer'):
 
-    filter_depth, filter_size, filter_size, num_filters = filter_shape
+    filter_size, filter_size, filter_depth, num_filters = filter_shape
 
     with tf.variable_scope(name):
         bias_const = 0.1
@@ -144,7 +144,7 @@ class Model:
             # Convolutional layer case
             if len(filter_shape[l]) == 3:
                 out_depth, height, width = filter_shape[l]
-                shape = [in_depth, height, width, out_depth]
+                shape = [height, width, in_depth, out_depth]
                 # Double convolution
                 if conv_type == 'double' and filter_shape[l][1] > kernel_size:
                     cur_layer = double_conv_layer(cur_layer, shape, kernel_size=kernel_size,
