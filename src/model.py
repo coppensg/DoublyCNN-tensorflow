@@ -100,6 +100,7 @@ class Model:
         kernel_size,
         kernel_pool_size,
     ):
+
         """
         Create instance of a Convolutional Neural Network model
         """

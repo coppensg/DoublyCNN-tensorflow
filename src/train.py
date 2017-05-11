@@ -28,7 +28,7 @@ def parseArgs():
     parser.add_argument('-kernel_pool_size', type=int, default=-1)
     parser.add_argument('-batch_size', type=int, default=200)
     parser.add_argument('-load_model', type=int, default=0)
-    parser.add_argument('-save_model', type=str, default='model_saved.npz')
+    parser.add_argument('-save_model', type=str, default='model.ckpt')
     parser.add_argument('-train_on_valid', type=int, default=1)
     parser.add_argument('-conv_type', type=str, default='double') # standard
     parser.add_argument('-learning_decay', type=numpy.float32, default=0.5)
@@ -77,6 +77,16 @@ def load_normalize_data(dataset):
 
     return [(train_x, train_y, train_num), (valid_x, valid_y, valid_num), (test_x, test_y, test_num), num_class, image_shape]
 
+def restore_model(saver, session, loadfrom):
+    saver.restore(session, loadfrom)
+    print "Model restored from " + loadfrom
+
+def store_model(saver, session, saveto):
+    save_path = saver.save(session, saveto)
+    print "Model saved to " + saveto
+
+
+
 def train(args):
 
     opt = vars(args)
@@ -95,16 +105,16 @@ def train(args):
     learning_decay = opt['learning_decay']
     path_log = opt['path_log']
 
-    # todo to add
-    # if save_model is not 'none':
-    #     saveto = './saved/' + dataset + '_' + save_model
-    # else:
-    #     saveto = None
-    #
-    # if load_model:
-    #     loadfrom = saveto
-    # else:
-    #     loadfrom = None
+    # Save or load the model
+    if save_model is not 'none':
+        saveto = '../save/' + dataset + '_' + save_model
+    else:
+        saveto = None
+    
+    if load_model:
+        loadfrom = saveto # load from the file specified by the <save_model> argument and will save to the same file
+    else:
+        loadfrom = None
 
     [(train_x, train_y, train_num),
      (valid_x, valid_y, valid_num),
@@ -113,9 +123,9 @@ def train(args):
 
     model = Model(image_shape, filter_shape, num_class, conv_type, kernel_size, kernel_pool_size)
 
-    # todo add the option to load and save a model
 
-    n_train_batches = 200/batch_size#train_num/ batch_size
+    n_train_batches = train_num/ batch_size
+    # n_train_batches = 200/batch_size
     n_valid_batches = valid_num/ batch_size
     n_test_batches = test_num/ batch_size
 
@@ -125,19 +135,27 @@ def train(args):
     valid_errors = []
     train_costs = []
     valid_costs = []
+    test_errors = []
 
     best_valid_err = 1.
     best_valid_epoch = 0
     bad_count = 0
-    best_model = model
+
 
     with tf.Session() as sess:
         file_writer = tf.summary.FileWriter(path_log, sess.graph)
         # tensorboard --logdir=path/to/logs
+
+        saver = tf.train.Saver()
+
         sess.run(tf.global_variables_initializer())
 
-
-        # todo load/ restore model
+        # Load the variables of the model if wanted
+        # Do we have to initialize the variables before loading them?
+        if loadfrom:
+            print "Loading model..."
+            restore_model(saver, sess, loadfrom)
+            
 
         sess.run(tf.assign(model.lr, lr))
         for epoch in range(train_epochs):
@@ -150,9 +168,11 @@ def train(args):
             cur_errors = []
             for batch in range(n_train_batches):
                 # create batch
-                batch_idx = idx_perm[batch*batch_size:(batch+1)*batch_size]
-                train_batch_x = train_x[batch_idx]
-                train_batch_y = train_y[batch_idx]
+                # batch_idx = idx_perm[batch*batch_size:(batch+1)*batch_size]
+                # train_batch_x = train_x[batch_idx]
+                # train_batch_y = train_y[batch_idx]
+                train_batch_x = train_x[batch*batch_size:(batch+1)*batch_size]
+                train_batch_y = train_y[batch*batch_size:(batch+1)*batch_size]
 
                 feed = {model.inputs: train_batch_x,
                         model.targets: train_batch_y,
@@ -193,12 +213,27 @@ def train(args):
             valid_costs.append(numpy.mean(cur_costs))
 
 
+            # compute test loss and err for best model
+            cur_errors = []
+            for batch in range(n_test_batches):
+                test_batch_x = test_x[batch * batch_size:(batch + 1) * batch_size]
+                test_batch_y = test_y[batch * batch_size:(batch + 1) * batch_size]
+                feed = {model.inputs: test_batch_x,
+                        model.targets: test_batch_y,
+                        model.keep_prob: 1.}
+                test_err = sess.run([model.err], feed)
+                cur_errors.append(test_err)
+
+            # todo add to tensorboard
+            test_errors.append(numpy.mean(cur_errors))
+
             # keep best model and reduce learning rate if necessary
             if valid_errors[-1] <= best_valid_err:
                 best_valid_err = valid_errors[-1]
                 best_valid_epoch = epoch
                 bad_count = 0
                 # todo copy current model as current best model
+                best_sess = sess # Useless for now but to check if mutable or not
             else:
                 bad_count += 1
                 if bad_count > patience:
@@ -210,21 +245,15 @@ def train(args):
             print "epoch. {}, train_loss = {:.4f}, valid_loss = {:.4f}, train_error = {:.4f}, valid_error = {:.4f}, time/epoch = {:.3f} s" \
                 .format(epoch, train_costs[-1], valid_costs[-1], train_errors[-1], valid_errors[-1], end - start)
 
-        # save models
+            # save models
+            if saveto and (epoch%10 == 0) and (epoch>0):
+                print 'Saving model ...'
+                store_model(saver, sess, saveto)       
 
-        # compute test loss and err for best model
-        cur_costs = []
-        cur_errors = []
-        for batch in range(n_test_batches):
-            test_batch_x = test_x[batch * batch_size:(batch + 1) * batch_size]
-            test_batch_y = test_y[batch * batch_size:(batch + 1) * batch_size]
-            feed = {model.inputs: test_batch_x,
-                    model.targets: test_batch_y,
-                    model.keep_prob: 1.}
-            test_err = sess.run([model.err], feed)
+        # Save last model
+        store_model(saver, sess, saveto)
 
-
-        print 'Best errors train {:.4f}, valid {:.4f}, test {:.4f}'.format(train_errors[best_valid_epoch], valid_errors[best_valid_epoch], test_err)
+        print 'Best errors train {:.4f}, valid {:.4f}, test {:.4f}'.format(train_errors[best_valid_epoch], valid_errors[best_valid_epoch], test_errors[best_valid_epoch])
 
 
         # todo save err, cost
