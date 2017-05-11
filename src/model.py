@@ -60,6 +60,7 @@ def double_conv_layer(x, filter_shape,
 
         filter = tf.reshape(tf.Variable(tf.diag(tf.ones(numpy.prod(W_shape[0:3])))),
                             W_shape[0:3]+[numpy.prod(W_shape[0:3]),])
+
         W_meta = tf.transpose(W_meta, perm=[3,0,1,2])
         # conv2d
         # input shape [batch, in_height, in_width, in_channels]
@@ -67,25 +68,23 @@ def double_conv_layer(x, filter_shape,
         W_effective = tf.nn.conv2d(W_meta, filter, strides=[1,1,1,1], padding='VALID')
 
         W_effective = tf.transpose(W_effective, perm=[3, 0, 1, 2])
-        print  W_effective
-        print W_shape
         W_effective = tf.reshape(W_effective, W_shape)
-
         output = tf.nn.conv2d(x, W_effective, strides=[1, 1, 1, 1], padding=padding)
         # todo voir s'il faut ajouter un biais
+        #output = nonlinearity(output)
 
-        output = nonlinearity(output)
+        width = int(output.get_shape()[1].value)
+        height = int(output.get_shape()[2].value)
 
-        batch_size = tf.shape(x)[0]
-        width = tf.shape(x)[1]
-        height = tf.shape(x)[2]
         output = tf.transpose(output, [0, 3, 1, 2])
-        output = tf.reshape(output, [batch_size, filter_offset, filter_offset, width*height*num_filters])
+        output = tf.reshape(output, [-1, filter_offset, filter_offset, width*height*num_filters])
+        print output
+        I = tf.nn.max_pool(output, ksize=[1, kernel_pool_size, kernel_pool_size, 1], strides=[1, kernel_pool_size, kernel_pool_size, 1], padding='SAME')
+        depth = int(I.get_shape()[1].value)
+        depth = depth*depth*num_filters
+        I = tf.transpose(I, [0, 3, 1, 2])
+        I = tf.reshape(I, [-1, width, height, depth])
 
-        I = tf.nn.max_pool(output, ksize=[1, kernel_pool_size, kernel_pool_size, 1], strides=[1, 1, 1, 1], padding='SAME')
-
-        I = tf.transpose(I, [0, 2, 3, 1])
-        I = tf.reshape(I, [batch_size, width, height, -1])
         return I
 
 

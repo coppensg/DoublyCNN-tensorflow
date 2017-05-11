@@ -23,18 +23,18 @@ def parseArgs():
     parser.add_argument('-train_epochs', type=int, default=150)
     parser.add_argument('-patience', type=int, default=10)
     parser.add_argument('-lr', type=numpy.float32, default=1e0)
-    parser.add_argument('-filter_shape', type=Shape, nargs='+', default=[(64, 3, 3), (2, 2)])
-    parser.add_argument('-kernel_size', type=int, default=3)
+    parser.add_argument('-filter_shape', type=Shape, nargs='+', default=[(64, 7, 7), (2, 2)])
+    parser.add_argument('-kernel_size', type=int, default=5)
     parser.add_argument('-kernel_pool_size', type=int, default=-1)
     parser.add_argument('-batch_size', type=int, default=200)
     parser.add_argument('-load_model', type=int, default=0)
     parser.add_argument('-save_model', type=str, default='model_saved.npz')
     parser.add_argument('-train_on_valid', type=int, default=1)
-    parser.add_argument('-conv_type', type=str, default='standard') # standard
+    parser.add_argument('-conv_type', type=str, default='double') # standard
     parser.add_argument('-learning_decay', type=numpy.float32, default=0.5)
     parser.add_argument('-keep_prob', type=str, default=0.5)
     parser.add_argument('-save_dir', type=str, default='../save')
-    parser.add_argument('--path_log', type=str, default='../logs')
+    parser.add_argument('-path_log', type=str, default='../logs')
 
     args = parser.parse_args()
     # Save config
@@ -115,7 +115,7 @@ def train(args):
 
     # todo add the option to load and save a model
 
-    n_train_batches = train_num/ batch_size
+    n_train_batches = 200/batch_size#train_num/ batch_size
     n_valid_batches = valid_num/ batch_size
     n_test_batches = test_num/ batch_size
 
