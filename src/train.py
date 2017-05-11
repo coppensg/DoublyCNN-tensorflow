@@ -158,6 +158,10 @@ def train(args):
                         model.targets: train_batch_y,
                         model.keep_prob: keep_prob}
                 _ = sess.run([model.train_op], feed)
+            
+            for batch in range(n_train_batches):
+                train_batch_x = train_x[batch*batch_size:(batch+1)*batch_size]
+                train_batch_y = train_y[batch*batch_size:(batch+1)*batch_size]
 
                 feed = {model.inputs: train_batch_x,
                         model.targets: train_batch_y,
@@ -175,8 +179,8 @@ def train(args):
             cur_costs = []
             cur_errors = []
             for batch in range(n_valid_batches):
-                valid_batch_x = train_x[batch*batch_size:(batch+1)*batch_size]
-                valid_batch_y = train_y[batch*batch_size:(batch+1)*batch_size]
+                valid_batch_x = valid_x[batch*batch_size:(batch+1)*batch_size]
+                valid_batch_y = valid_y[batch*batch_size:(batch+1)*batch_size]
                 feed = {model.inputs: valid_batch_x,
                         model.targets: valid_batch_y,
                         model.keep_prob: 1.}

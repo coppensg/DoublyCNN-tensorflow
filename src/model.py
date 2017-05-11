@@ -172,7 +172,14 @@ class Model:
 
         
         ### Global Average Pooling #############################################################################
+        
+        ## Average pooling not implemented for non-spatial dimensions ##
+        # avg_pool_input_depth = int(cur_layer.get_shape()[3])
+        # cur_layer = tf.nn.avg_pool(cur_layer, ksize=[1, 1, 1, avg_pool_input_depth], strides=[1, 1, 1, avg_pool_input_depth], padding='SAME', name='GAPL')
+        # cur_layer = tf.layers.average_pool2d(cur_layer, ksize=[1, 1], strides=[1, avg_pool_input_depth], padding='SAME', name='GAPL')
 
+        ## Do it with tf.reduce_mean(axis=3) ##
+        cur_layer = tf.reduce_mean(cur_layer, reduction_indices=[3], keep_dims=True)
         ########################################################################################################
 
 
