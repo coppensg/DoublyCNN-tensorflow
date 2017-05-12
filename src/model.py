@@ -11,6 +11,27 @@ def init_biases(constant, shape, name="b"):
     return tf.get_variable(name=name, shape=shape,
                            initializer=tf.constant_initializer(constant))
 
+def build_extractor(W_effective_shape):
+    return tf.reshape(tf.Variable(tf.diag(tf.ones(numpy.prod(W_effective_shape[0:3])))),
+                            W_effective_shape[0:3]+[numpy.prod(W_effective_shape[0:3]),])
+
+def filter_to_image(W):
+    return tf.transpose(W, perm=[3, 0, 1, 2])
+
+def image_to_filter(W,W_shape):
+    W = tf.transpose(W, perm=[3, 0, 1, 2])
+    W = tf.reshape(W, W_shape)
+    return W
+
+def reshape_before_pooling(output, width, height, filter_offset, num_filters):
+    output = tf.transpose(output, [0, 3, 1, 2])
+    return tf.reshape(output, [-1, filter_offset, filter_offset, width*height*num_filters])
+
+def reshape_after_pooling(I, width, height, num_filters):
+    depth = int(I.get_shape()[1].value)
+    depth = depth*depth*num_filters
+    I = tf.transpose(I, [0, 3, 1, 2])
+    return tf.reshape(I, [-1, width, height, depth])
 
 def simple_conv_layer(x, filter_shape, strides=[1, 1, 1, 1], padding='SAME', name="CNN2D"):
     # todo voir comment initialiser les params
@@ -44,46 +65,45 @@ def double_conv_layer(x, filter_shape,
                       kernel_size=3, kernel_pool_size=1,
                       nonlinearity=tf.nn.relu, padding='SAME', name='double_conv_layer'):
 
-    filter_size, filter_size, filter_depth, num_filters = filter_shape
-
-    with tf.variable_scope(name):
-        bias_const = 0.1
-
-        filter_offset = filter_size - kernel_size + 1
-        n_times = filter_offset ** 2
-
-        # sub filter W
-        W_shape = [kernel_size, kernel_size, filter_depth, num_filters * n_times]
-
-        W_meta = init_weights(filter_shape, name="W_meta")
-        b_meta = init_biases(bias_const, [num_filters], name="b_meta")
-
-        filter = tf.reshape(tf.Variable(tf.diag(tf.ones(numpy.prod(W_shape[0:3])))),
-                            W_shape[0:3]+[numpy.prod(W_shape[0:3]),])
-
-        W_meta = tf.transpose(W_meta, perm=[3,0,1,2])
         # conv2d
         # input shape [batch, in_height, in_width, in_channels]
         # filter shape [filter_height, filter_width, in_channels, out_channels]
-        W_effective = tf.nn.conv2d(W_meta, filter, strides=[1,1,1,1], padding='VALID')
+    with tf.variable_scope(name):
+        
+        bias_const = 0.1
 
-        W_effective = tf.transpose(W_effective, perm=[3, 0, 1, 2])
-        W_effective = tf.reshape(W_effective, W_shape)
+        # Define all shapes        
+        filter_size, filter_size, filter_depth, num_filters = filter_shape        
+        filter_offset = filter_size - kernel_size + 1
+        n_times = filter_offset ** 2
+        W_effective_shape = [kernel_size, kernel_size, filter_depth, num_filters * n_times]
+
+        # Initalize meta filters
+        W_meta = init_weights(filter_shape, name="W_meta")
+
+        # First convolution : extract effective filters
+        extractor = build_extractor(W_effective_shape)
+        W_meta = filter_to_image(W_meta)
+        W_effective = tf.nn.conv2d(W_meta, extractor, strides=[1,1,1,1], padding='VALID')
+
+        # Second convolution : convolve effective filters to images
+        W_effective = image_to_filter(W_effective, W_effective_shape)
         output = tf.nn.conv2d(x, W_effective, strides=[1, 1, 1, 1], padding=padding)
-        # todo voir s'il faut ajouter un biais
-        #output = nonlinearity(output)
+        
+        # Add bias and apply non-linearity
+        bias = init_biases(bias_const, [W_effective.get_shape()[3].value])
+        output = nonlinearity(output + bias)
 
-        width = int(output.get_shape()[1].value)
-        height = int(output.get_shape()[2].value)
-
-        output = tf.transpose(output, [0, 3, 1, 2])
-        output = tf.reshape(output, [-1, filter_offset, filter_offset, width*height*num_filters])
-        print output
+        # Reorganise output for pooling
+        next_width = int(output.get_shape()[1].value)
+        next_height = int(output.get_shape()[2].value)
+        output = reshape_before_pooling(output, next_width, next_height, filter_offset, num_filters)
+        
+        # Pooling
         I = tf.nn.max_pool(output, ksize=[1, kernel_pool_size, kernel_pool_size, 1], strides=[1, kernel_pool_size, kernel_pool_size, 1], padding='SAME')
-        depth = int(I.get_shape()[1].value)
-        depth = depth*depth*num_filters
-        I = tf.transpose(I, [0, 3, 1, 2])
-        I = tf.reshape(I, [-1, width, height, depth])
+        
+        # Reorganise output to image
+        I = reshape_after_pooling(I, next_width, next_height, num_filters)
 
         return I
 
@@ -147,12 +167,14 @@ class Model:
                 shape = [height, width, in_depth, out_depth]
                 # Double convolution
                 if conv_type == 'double' and filter_shape[l][1] > kernel_size:
+                    print "Building double conv layer, shape : " + str(filter_shape[l][1])
                     cur_layer = double_conv_layer(cur_layer, shape, kernel_size=kernel_size,
                                                   kernel_pool_size=kernel_pool_size, padding='SAME',
                                                   name='DoublyCNN2D_{}'.format(l))
                     cur_layer = tf.layers.batch_normalization(cur_layer, name='DoublyCNN2D_{}_BN'.format(l))
                 # Simple convolution
                 elif conv_type == 'standard' or (conv_type == 'double' and filter_shape[l][1] <= kernel_size):
+                    print "Building simple conv layer, shape : " + str(filter_shape[l][1])
                     cur_layer = simple_conv_layer(cur_layer, shape, strides=[1,1,1,1], padding='SAME',
                                                   name='CNN2D_{}'.format(l))
                     cur_layer = tf.layers.batch_normalization(cur_layer, name='CNN2D_{}_BN'.format(l))
