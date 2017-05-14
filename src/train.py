@@ -136,7 +136,7 @@ def factory_appender(sess, use_log, log_dir, log_filename):
     if use_log:
         writer = tf.summary.FileWriter(os.path.join(log_dir, log_filename), sess.graph)
     def appender(list, value, epoch, tag):
-        list.append(value)
+        list[epoch] = value
         if use_log:
              summary = tf.Summary(value=[tf.Summary.Value(tag=tag, simple_value=value)])
              writer.add_summary(summary, epoch)
@@ -157,17 +157,15 @@ def training(sess, model, opt, train, valid, save):
     (valid_x, valid_y, valid_num) = valid
 
     n_train_batches = train_num/ batch_size
-    n_train_batches = 500/batch_size # TODO remove line
     n_valid_batches = valid_num/ batch_size
-    n_valid_batches = 500/ batch_size # TODO remove line
 
     tr_appender = factory_appender(sess=sess, use_log=use_log, log_dir=path_log, log_filename="train")
     va_appender = factory_appender(sess=sess, use_log=use_log, log_dir=path_log, log_filename="valid")
 
     print "Training..."
 
-    # TODO : use numpy array with fix length !
-    train_errors, valid_errors, train_costs, valid_costs = [], [], [], []
+    train_errors, valid_errors, train_costs, valid_costs = numpy.zeros((train_epochs)), numpy.zeros((train_epochs)),\
+                                                           numpy.zeros((train_epochs)), numpy.zeros((train_epochs))
 
     best_valid_err = 1.
     best_valid_epoch = 0
@@ -181,7 +179,8 @@ def training(sess, model, opt, train, valid, save):
 
         # shuffle the train set
         idx_perm = numpy.random.permutation(train_num)
-        # TODO apply permutation
+        train_x = train_x[idx_perm]
+        train_y = train_y[idx_perm]
 
         # compute train loss, err and update weights
         update_model(sess=sess, model=model, inputs=train_x, target=train_y,
@@ -217,7 +216,7 @@ def training(sess, model, opt, train, valid, save):
         end = time.time()
         print "epoch. {}, train_loss = {:.4f}, valid_loss = {:.4f}," \
               "train_error = {:.4f}, valid_error = {:.4f}, time/epoch = {:.3f} s" \
-            .format(epoch, train_costs[-1], valid_costs[-1], train_errors[-1], valid_errors[-1], end - start)
+            .format(epoch, train_costs[epoch], valid_costs[epoch], train_errors[epoch], valid_errors[epoch], end - start)
 
         # save models
         if (epoch%10 == 0) and (epoch>0):
