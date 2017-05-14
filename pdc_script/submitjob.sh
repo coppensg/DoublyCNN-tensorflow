@@ -15,4 +15,5 @@
 #SBATCH -e error_file.txt
 #SBATCH -o output_file.txt
 # Run the executable (add possible additional dependencies here)
+module load cudnn/5.1-cuda-8.0
 ./pdc_script/runtraining.sh $1
