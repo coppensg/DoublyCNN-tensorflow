@@ -2,7 +2,7 @@
 import cPickle as pkl
 import numpy as np
 
-data_dir = '../Datasets/cifar-10-batches-py/'
+data_dir = './Datasets/cifar-10-batches-py/'
 train_files = ['data_batch_1', 'data_batch_2', 'data_batch_3', 'data_batch_4']
 valid_file = 'data_batch_5'
 test_file = 'test_batch'

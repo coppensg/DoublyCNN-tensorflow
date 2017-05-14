@@ -2,7 +2,7 @@
 import cPickle as pkl
 import numpy as np
 
-data_dir = '../Datasets/cifar-100-python/'
+data_dir = './Datasets/cifar-100-python/'
 train_file = 'train'
 test_file = 'test'
 
