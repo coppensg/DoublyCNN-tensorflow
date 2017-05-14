@@ -204,8 +204,8 @@ def training(sess, model, opt, train, valid, save):
             best_valid_err = valid_errors[-1]
             best_valid_epoch = epoch
             bad_count = 0
-            # TODO copy current model as current best model
-            best_sess = sess # Useless for now but to check if mutable or not
+            # update the current best model
+            save()
         else:
             bad_count += 1
             if bad_count > patience:
@@ -218,13 +218,11 @@ def training(sess, model, opt, train, valid, save):
               "train_error = {:.4f}, valid_error = {:.4f}, time/epoch = {:.3f} s" \
             .format(epoch, train_costs[epoch], valid_costs[epoch], train_errors[epoch], valid_errors[epoch], end - start)
 
-        # save models
-        if (epoch%10 == 0) and (epoch>0):
-            save()
+        # Not useful anymore
+        # # save models
+        # if (epoch%10 == 0) and (epoch>0):
+        #     save()
 
-    # TODO to test
-    # Save best model
-    save(sess=best_sess)
     print 'Best errors train {:.4f}, valid {:.4f}'.format(train_errors[best_valid_epoch], valid_errors[best_valid_epoch])
 
 
