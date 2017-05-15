@@ -222,4 +222,4 @@ class Model:
         self.err = tf.reduce_mean(tf.cast(uncorrect_prediction, tf.float32))
 
         self.lr = tf.Variable(0.0, trainable=False)
-        self.train_op = tf.train.AdamOptimizer(self.lr).minimize(self.loss)
+        self.train_op = tf.train.AdadeltaOptimizer(self.lr).minimize(self.loss)
