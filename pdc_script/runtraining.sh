@@ -17,8 +17,8 @@ mkdir -p ${log_dir}
 
 batch_size=200
 train_epochs=150
-patience=10
-lr=0.1
+patience=5
+lr=0.001
 learning_decay=0.5
 keep_prob=0.5
 
@@ -41,7 +41,7 @@ database=$1
 ## run learning of CNN
 model_name=CNN
 conv_type=standard
-filter_shape="128,3,3 2,2 128,3,3 2,2 128,3,3 2,2 128,3,3 2,2"
+filter_shape="128,3,3 128,3,3 2,2 128,3,3 128,3,3 2,2 128,3,3 128,3,3 2,2 128,3,3 128,3,3 2,2"
 kernel_size=-1
 kernel_pool_size=-1
 
@@ -52,7 +52,7 @@ train ${database} ${model_name} ${conv_type} "${filter_shape}" ${kernel_size} ${
 
 model_name=DCNN
 conv_type=double
-filter_shape="128,4,4 2,2 128,4,4 2,2 128,4,4 2,2 128,4,4 2,2"
+filter_shape="128,4,4 128,4,4 2,2 128,4,4 128,4,4 2,2 128,4,4 128,4,4 2,2 128,4,4 128,4,4 2,2"
 kernel_size=3
 kernel_pool_size=2
 
