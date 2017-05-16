@@ -31,16 +31,16 @@ def parseArgs():
 
     # Model params
     parser.add_argument('-t', '--conv_type', type=str, default='standard')  # standard or double
-    parser.add_argument('-filter_shape', type=Shape, nargs='+', default=[(64, 3, 3), (2, 2)])
+    parser.add_argument('-filter_shape', type=Shape, nargs='+', default=[(128, 3, 3), (128, 3, 3), (2, 2)])
     parser.add_argument('-kernel_size', type=int, default=3)
     parser.add_argument('-kernel_pool_size', type=int, default=-1)
 
     # Training params
-    parser.add_argument('-b', '--batch_size', type=int, default=20)
-    parser.add_argument('-e', '--train_epochs', type=int, default=150)
-    parser.add_argument('-p', '--patience', type=int, default=10)
-    parser.add_argument('-lr', type=numpy.float32, default=0.1)
-    parser.add_argument('-learning_decay', type=numpy.float32, default=0.5)
+    parser.add_argument('-b', '--batch_size', type=int, default=200)
+    parser.add_argument('-e', '--train_epochs', type=int, default=400)
+    parser.add_argument('-p', '--patience', type=int, default=2)
+    parser.add_argument('-lr', type=numpy.float32, default=0.0001)
+    parser.add_argument('-learning_decay', type=numpy.float32, default=0.9)
     parser.add_argument('-keep_prob', type=str, default=0.5)
 
     args = parser.parse_args()
@@ -81,6 +81,10 @@ def load_normalize_data(dataset):
     train_x -= xmean
     valid_x -= xmean
     test_x -= xmean
+
+    train_x = train_x.reshape([-1, 3, 32, 32]).transpose([0, 2, 3, 1]).astype(numpy.float32)
+    valid_x = valid_x.reshape([-1, 3, 32, 32]).transpose([0, 2, 3, 1]).astype(numpy.float32)
+    test_x = test_x.reshape([-1, 3, 32, 32]).transpose([0, 2, 3, 1]).astype(numpy.float32)
 
     return [(train_x, train_y, train_num), (valid_x, valid_y, valid_num), (test_x, test_y, test_num), num_class, image_shape]
 
@@ -157,7 +161,9 @@ def training(sess, model, opt, train, valid, save):
     (valid_x, valid_y, valid_num) = valid
 
     n_train_batches = train_num/ batch_size
+    n_train_batches = 1000 / batch_size
     n_valid_batches = valid_num/ batch_size
+    n_valid_batches = 100 / batch_size
 
     tr_appender = factory_appender(sess=sess, use_log=use_log, log_dir=path_log, log_filename="train")
     va_appender = factory_appender(sess=sess, use_log=use_log, log_dir=path_log, log_filename="valid")
@@ -178,9 +184,9 @@ def training(sess, model, opt, train, valid, save):
         start = time.time()
 
         # shuffle the train set
-        idx_perm = numpy.random.permutation(train_num)
-        train_x = train_x[idx_perm]
-        train_y = train_y[idx_perm]
+        #idx_perm = numpy.random.permutation(train_num)
+        #train_x = train_x[idx_perm]
+        #train_y = train_y[idx_perm]
 
         # compute train loss, err and update weights
         update_model(sess=sess, model=model, inputs=train_x, target=train_y,
@@ -208,7 +214,7 @@ def training(sess, model, opt, train, valid, save):
             save()
         else:
             bad_count += 1
-            if bad_count > patience:
+            if bad_count >= patience:
                 print 'Reducing the learning rate..'
                 sess.run(tf.assign(model.lr, model.lr*learning_decay))
                 bad_count = 0
