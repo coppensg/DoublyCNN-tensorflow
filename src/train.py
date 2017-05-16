@@ -8,8 +8,6 @@ import argparse
 import numpy
 import tensorflow as tf
 
-import load_data_cifar10
-import load_data_cifar100
 import utils
 
 from model import Model
@@ -51,97 +49,6 @@ def parseArgs():
     return vars(args)
 
 
-def load_normalize_data(dataset):
-
-    if dataset == 'cifar10':
-        data_dir = load_data_cifar10.data_dir
-        load_data = load_data_cifar10.load_data
-    elif dataset == 'cifar100':
-        load_data = load_data_cifar100.load_data
-        data_dir = load_data_cifar100.data_dir
-    else:
-        sys.exit("The dataset {} is not recognized".format(dataset))
-
-    image_shape = (3, 32, 32)
-    print "Load the dataset {}...".format(dataset)
-    datasets = load_data(data_dir)
-    train_x, valid_x, test_x = [data[0] for data in datasets]
-    train_y, valid_y, test_y = [data[1] for data in datasets]
-
-    # one hot encoding
-    num_class = numpy.max(train_y) + 1
-    train_y = numpy.eye(num_class, dtype=float)[train_y]
-    valid_y = numpy.eye(num_class, dtype=float)[valid_y]
-    test_y = numpy.eye(num_class, dtype=float)[test_y]
-
-    train_num, valid_num, test_num = [data[0].shape[0] for data in datasets]
-
-    print "Normalize the training, validation, test sets..."
-    xmean = train_x.mean(axis=0)
-    train_x -= xmean
-    valid_x -= xmean
-    test_x -= xmean
-
-    return [(train_x, train_y, train_num), (valid_x, valid_y, valid_num), (test_x, test_y, test_num), num_class, image_shape]
-
-
-def update_model(sess, model, inputs, target, batch_size, n_batch, keep_prob=1.):
-    '''
-    Batch processing for the forward and back-prop
-    :param sess: current tensorflow session
-    :param model: instance of Model
-    :param keep_prob: probability to keep a coonection
-    '''
-    for batch in range(n_batch):
-        idx = range(batch * batch_size, (batch + 1) * batch_size)
-        input_batch = inputs[idx]
-        target_batch = target[idx]
-
-        feed = {model.inputs: input_batch,
-                model.targets: target_batch,
-                model.keep_prob: keep_prob}
-
-        _ = sess.run([model.train_op], feed)
-
-def fwd_eval(sess, model, inputs, target, batch_size, n_batch):
-    '''
-    Batch processing for the forward pass
-    :param sess: current tensorflow session
-    :param model: instance of Model
-    :return: [loss, errors]
-    '''
-    cur_costs, cur_errors = numpy.zeros((n_batch)), numpy.zeros((n_batch))
-    for batch in range(n_batch):
-        idx = range(batch * batch_size, (batch + 1) * batch_size)
-        inputs_batch = inputs[idx]
-        target_batch = target[idx]
-
-        feed = {model.inputs: inputs_batch,
-                model.targets: target_batch,
-                model.keep_prob: 1}
-        train_loss, train_err = sess.run([model.loss, model.err], feed)
-        cur_costs[batch] = train_loss
-        cur_errors[batch] = train_err
-
-    return cur_costs.mean(), cur_errors.mean()
-
-
-def factory_appender(sess, use_log, log_dir, log_filename):
-    '''
-    Closure in order to log event when append to a list
-    :param sess: current tensorflow session
-    :param use_log: bool. if False no logs will be created
-    :return: function which append elements to a list
-    '''
-    if use_log:
-        writer = tf.summary.FileWriter(os.path.join(log_dir, log_filename), sess.graph)
-    def appender(list, value, epoch, tag):
-        list[epoch] = value
-        if use_log:
-             summary = tf.Summary(value=[tf.Summary.Value(tag=tag, simple_value=value)])
-             writer.add_summary(summary, epoch)
-    return appender
-
 def training(sess, model, opt, train, valid, save):
     # Model data
     batch_size = opt['batch_size']
@@ -159,8 +66,8 @@ def training(sess, model, opt, train, valid, save):
     n_train_batches = train_num/ batch_size
     n_valid_batches = valid_num/ batch_size
 
-    tr_appender = factory_appender(sess=sess, use_log=use_log, log_dir=path_log, log_filename="train")
-    va_appender = factory_appender(sess=sess, use_log=use_log, log_dir=path_log, log_filename="valid")
+    tr_appender = utils.factory_appender(sess=sess, use_log=use_log, log_dir=path_log, log_filename="train")
+    va_appender = utils.factory_appender(sess=sess, use_log=use_log, log_dir=path_log, log_filename="valid")
 
     print "Training..."
 
@@ -170,7 +77,6 @@ def training(sess, model, opt, train, valid, save):
     best_valid_err = 1.
     best_valid_epoch = 0
     bad_count = 0
-    best_sess = sess
 
     # TODO see if tensorflow use learning rate decay by default
     sess.run(tf.assign(model.lr, lr))
@@ -183,17 +89,17 @@ def training(sess, model, opt, train, valid, save):
         train_y = train_y[idx_perm]
 
         # compute train loss, err and update weights
-        update_model(sess=sess, model=model, inputs=train_x, target=train_y,
+        utils.update_model(sess=sess, model=model, inputs=train_x, target=train_y,
                   batch_size=batch_size, n_batch=n_train_batches, keep_prob=keep_prob)
 
         # Compute training loss and err
-        loss, err = fwd_eval(sess=sess, model=model, inputs=train_x, target=train_y,
+        loss, err = utils.fwd_eval(sess=sess, model=model, inputs=train_x, target=train_y,
                               batch_size=batch_size, n_batch=n_train_batches)
         tr_appender(train_errors, err, epoch, "error")
         tr_appender(train_costs, loss, epoch, "loss")
 
         # compute validation loss and err
-        loss, err = fwd_eval(sess=sess, model=model, inputs=valid_x, target=valid_y,
+        loss, err = utils.fwd_eval(sess=sess, model=model, inputs=valid_x, target=valid_y,
                               batch_size=batch_size, n_batch=n_valid_batches)
         va_appender(valid_errors, err, epoch, "error")
         va_appender(valid_costs, loss, epoch, "loss")
@@ -207,6 +113,7 @@ def training(sess, model, opt, train, valid, save):
             # update the current best model
             save()
         else:
+            print "bad_count"
             bad_count += 1
             if bad_count > patience:
                 print 'Reducing the learning rate..'
@@ -241,7 +148,7 @@ def main(arg):
     kernel_pool_size = arg['kernel_pool_size']
 
     # Data
-    [train, valid, _, num_class, image_shape] = load_normalize_data(dataset)
+    [train, valid, _, num_class, image_shape] = utils.load_normalize_data(dataset)
 
     # Save/load
     saveto = os.path.join(save_dir, model_filename) if model_filename is not None else None
