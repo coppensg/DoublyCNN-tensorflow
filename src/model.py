@@ -176,27 +176,21 @@ class Model:
 
 
         ### Global Average Pooling #############################################################################
+        if len(filter_shape[self.n_layers-1]) != 3 or filter_shape[self.n_layers-1][0] != num_class:
+            print filter_shape[self.n_layers-1]
+            print filter_shape[self.n_layers-1][0]
+            raise ValueError("The last layer must be a convolution layer with {} filters.".format(num_class))
 
-        ## Average pooling not implemented for non-spatial dimensions ##
-        # avg_pool_input_depth = int(cur_layer.get_shape()[3])
-        # cur_layer = tf.nn.avg_pool(cur_layer, ksize=[1, 1, 1, avg_pool_input_depth], strides=[1, 1, 1, avg_pool_input_depth], padding='SAME', name='GAPL')
-        # cur_layer = tf.layers.average_pool2d(cur_layer, ksize=[1, 1], strides=[1, avg_pool_input_depth], padding='SAME', name='GAPL')
-
-        ## Do it with tf.reduce_mean(axis=3) ##
-        #
-        # todo ...
-        # cur_layer = tf.reduce_mean(cur_layer, reduction_indices=[3], keep_dims=True)
-        ########################################################################################################
+        height, width = map(int, list(self.layers[-1].get_shape())[1:-1])
+        self.layers.append(tf.nn.avg_pool(self.layers[-1], ksize=[1, height, width, 1], strides=[1, height, width, 1], padding='VALID', name='Global_AVG_POOL'))
 
 
         ### Logits #############################################################################################
         ### (use tf.nn.softmax_cross_entropy_with_logits(logits, labels) which is optimized for training #######
         ### and tf.nn.softmax(logits) fot prediction) ##########################################################
 
-        # Full connected layer
-        last_layer_shape  = map(int, list(self.layers[-1].get_shape())[1:])
-        flatten = tf.reshape(self.layers[-1], [-1, numpy.prod(last_layer_shape)])
-        self.logits = fully_connected_layer(flatten, num_class, name="FCL")
+        last_layer_shape = map(int, list(self.layers[-1].get_shape())[1:])
+        self.logits = tf.reshape(self.layers[-1], [-1, numpy.prod(last_layer_shape)])
         self.probs = tf.nn.softmax(self.logits)
 
         # loss
