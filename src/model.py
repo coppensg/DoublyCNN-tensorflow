@@ -44,9 +44,13 @@ def simple_conv_layer(x, filter_shape, strides=[1, 1, 1, 1], padding='SAME', nam
 
         # Apply convolution
         conv = tf.nn.conv2d(x, W, strides=strides, padding=padding)
+        # Apply batch normalization
+        output = tf.layers.batch_normalization(conv + bias)
+        # apply non - linearity
+        output = tf.nn.relu(output)
 
         # return activation of convolution + bias terms
-        return tf.nn.relu(conv + bias)
+        return output
 
 
 def fully_connected_layer(x, num_class, name="FCL"):
@@ -88,9 +92,12 @@ def double_conv_layer(x, filter_shape,
         W_effective = image_to_filter(W_effective, W_effective_shape)
         output = tf.nn.conv2d(x, W_effective, strides=[1, 1, 1, 1], padding=padding)
         
-        # Add bias and apply non-linearity
+        # Add bias
         bias = init_biases(bias_const, [W_effective.get_shape()[3].value])
-        output = nonlinearity(output + bias)
+        # batch normalization
+        output = tf.layers.batch_normalization(output + bias)
+        # apply non - linearity
+        output = nonlinearity(output)
 
         # Reorganise output for pooling
         next_width = int(output.get_shape()[1].value)
@@ -150,13 +157,11 @@ class Model:
                     self.layers.append(double_conv_layer(self.layers[-1], shape, kernel_size=kernel_size,
                                                          kernel_pool_size=kernel_pool_size, padding='SAME',
                                                          name='DoublyCNN2D_{}'.format(l)))
-                    self.layers.append(tf.layers.batch_normalization(self.layers[-1], name='DoublyCNN2D_{}_BN'.format(l)))
                 # Simple convolution
                 elif conv_type == 'standard' or (conv_type == 'double' and filter_shape[l][1] <= kernel_size):
                     print "Building simple conv layer, shape : " + str(filter_shape[l][1])
                     self.layers.append(simple_conv_layer(self.layers[-1], shape, strides=[1,1,1,1], padding='SAME',
                                                          name='CNN2D_{}'.format(l)))
-                    self.layers.append(tf.layers.batch_normalization(self.layers[-1], name='CNN2D_{}_BN'.format(l)))
                 else:
                     raise NotImplementedError
                 in_depth = out_depth
