@@ -12,7 +12,7 @@ def init_biases(constant, shape, name="b"):
                            initializer=tf.constant_initializer(constant))
 
 def build_extractor(W_effective_shape):
-    return tf.reshape(tf.Variable(tf.diag(tf.ones(numpy.prod(W_effective_shape[0:3])))),
+    return tf.reshape(tf.Variable(tf.diag(tf.ones(numpy.prod(W_effective_shape[0:3]))), trainable=False),
                             W_effective_shape[0:3]+[numpy.prod(W_effective_shape[0:3]),])
 
 def filter_to_image(W):
