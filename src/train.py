@@ -29,7 +29,7 @@ def parseArgs():
 
     # Model params
     parser.add_argument('-t', '--conv_type', type=str, default='standard')  # standard or double
-    parser.add_argument('-filter_shape', type=Shape, nargs='+', default=[(64, 3, 3), (2, 2)])
+    parser.add_argument('-filter_shape', type=Shape, nargs='+', default=[(64, 3, 3), (2, 2), (10,3,3)])
     parser.add_argument('-kernel_size', type=int, default=3)
     parser.add_argument('-kernel_pool_size', type=int, default=-1)
 
@@ -40,6 +40,7 @@ def parseArgs():
     parser.add_argument('-lr', type=numpy.float32, default=0.1)
     parser.add_argument('-learning_decay', type=numpy.float32, default=0.5)
     parser.add_argument('-keep_prob', type=str, default=0.5)
+    parser.add_argument('-augmentation', action='store_true')
 
     args = parser.parse_args()
     # Save config
@@ -59,6 +60,13 @@ def training(sess, model, opt, train, valid, save):
     keep_prob = opt['keep_prob']
     use_log = opt['log']
     path_log = opt['path_log']
+    augmentation = opt['augmentation']
+    
+    if augmentation:
+        print 'Applying data augmentation at each epoch'
+    else:
+        print 'No data augmentation'
+
 
     (train_x, train_y, train_num) = train
     (valid_x, valid_y, valid_num) = valid
@@ -87,6 +95,13 @@ def training(sess, model, opt, train, valid, save):
         idx_perm = numpy.random.permutation(train_num)
         train_x = train_x[idx_perm]
         train_y = train_y[idx_perm]
+
+        if augmentation:
+            beg = time.time()
+            tensor_x = utils.distord(train_x)
+            train_x = numpy.array(sess.run([tensor_x]))[0]
+            end = time.time()
+            print 'data_augmentation/epoch = {:.3f} s'.format(end-beg)
 
         # compute train loss, err and update weights
         utils.update_model(sess=sess, model=model, inputs=train_x, target=train_y,
