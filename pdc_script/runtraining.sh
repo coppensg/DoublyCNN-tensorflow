@@ -18,10 +18,10 @@ mkdir -p ${log_dir}
 
 batch_size=200
 train_epochs=150
-patience=3
-lr=0.001
+patience=4
+lr=0.5
 learning_decay=0.5
-keep_prob=0.5
+keep_prob=0.4
 
 echo "Run the" ${model_name} "training on the database" ${database} "..."
 
@@ -30,7 +30,7 @@ python src/train.py --dataset ${database} --save_dir ${save_dir} \
  --patience ${patience} -lr ${lr} -filter_shape ${filter_shape} -kernel_size ${kernel_size} \
  -kernel_pool_size ${kernel_pool_size} -learning_decay ${learning_decay} -keep_prob ${keep_prob} \
  ${augmentation} \
- |& tee -a ${log_dir}/logfile.txt
+ #|& tee -a ${log_dir}/logfile.txt
 }
 
 # activate virtual env
@@ -47,7 +47,7 @@ fi
 ## run learning of CNN
 model_name=CNN
 conv_type=standard
-filter_shape="128,3,3 128,3,3 2,2 128,3,3 128,3,3 2,2 128,3,3 128,3,3 2,2 128,3,3 10,3,3"
+filter_shape="128,3,3 128,3,3 2,2 128,3,3 128,3,3 2,2 128,3,3 128,3,3 2,2 128,3,3 128,3,3 2,2 10,3,3"
 kernel_size=-1
 kernel_pool_size=-1
 
@@ -58,7 +58,7 @@ train ${database} ${model_name} ${conv_type} "${filter_shape}" ${kernel_size} ${
 
 model_name=DCNN
 conv_type=double
-filter_shape="128,4,4 128,4,4 2,2 128,4,4 128,4,4 2,2 128,4,4 128,4,4 2,2 128,4,4 10,4,4"
+filter_shape="128,4,4 128,4,4 2,2 128,4,4 128,4,4 2,2 128,4,4 128,4,4 2,2 128,4,4 128,4,4 2,2 10,4,4"
 kernel_size=3
 kernel_pool_size=2
 
