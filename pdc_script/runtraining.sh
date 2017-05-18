@@ -18,8 +18,8 @@ mkdir -p ${log_dir}
 
 batch_size=200
 train_epochs=150
-patience=4
-lr=0.5
+patience=5
+lr=0.001
 learning_decay=0.5
 keep_prob=0.4
 
@@ -30,7 +30,7 @@ python src/train.py --dataset ${database} --save_dir ${save_dir} \
  --patience ${patience} -lr ${lr} -filter_shape ${filter_shape} -kernel_size ${kernel_size} \
  -kernel_pool_size ${kernel_pool_size} -learning_decay ${learning_decay} -keep_prob ${keep_prob} \
  ${augmentation} \
- #|& tee -a ${log_dir}/logfile.txt
+ |& tee -a ${log_dir}/logfile.txt
 }
 
 # activate virtual env
