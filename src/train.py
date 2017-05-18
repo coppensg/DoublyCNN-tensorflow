@@ -71,6 +71,12 @@ def training(sess, model, opt, train, valid, save):
     (train_x, train_y, train_num) = train
     (valid_x, valid_y, valid_num) = valid
 
+    #### DEBUG
+    train_num = 20
+    train_x = train_x[0:train_num]
+    train_y = train_y[0:train_num]
+    ####
+
     n_train_batches = train_num/ batch_size
     n_valid_batches = valid_num/ batch_size
 
@@ -86,6 +92,14 @@ def training(sess, model, opt, train, valid, save):
     best_valid_err = 1.
     best_valid_epoch = 0
     bad_count = 0
+
+    ######### DEBUG TENSORBOARD
+    log_dir = opt['path_log']
+    log_filename = "image"
+    img_writer = tf.summary.FileWriter(os.path.join(log_dir, log_filename), sess.graph)
+    merged = tf.summary.merge_all()
+    #########
+
 
     # TODO see if tensorflow use learning rate decay by default
     sess.run(tf.assign(model.lr, lr))
@@ -105,8 +119,10 @@ def training(sess, model, opt, train, valid, save):
             print 'data_augmentation/epoch = {:.3f} s'.format(end-beg)
 
         # compute train loss, err and update weights
+        ###### SUMMARY
         utils.update_model(sess=sess, model=model, inputs=train_x, target=train_y,
-                  batch_size=batch_size, n_batch=n_train_batches, keep_prob=keep_prob)
+                           batch_size=batch_size, n_batch=n_train_batches, keep_prob=keep_prob, merged=merged,
+                           img_writer=img_writer, epoch=epoch)
 
         # Compute training loss and err
         loss, err = utils.fwd_eval(sess=sess, model=model, inputs=train_x, target=train_y,

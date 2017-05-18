@@ -12,7 +12,7 @@ def init_biases(constant, shape, name="b"):
                            initializer=tf.constant_initializer(constant))
 
 def build_extractor(W_effective_shape):
-    return tf.reshape(tf.Variable(tf.diag(tf.ones(numpy.prod(W_effective_shape[0:3])))),
+    return tf.reshape(tf.Variable(tf.diag(tf.ones(numpy.prod(W_effective_shape[0:3]))),trainable=False),
                             W_effective_shape[0:3]+[numpy.prod(W_effective_shape[0:3]),])
 
 def filter_to_image(W):
@@ -78,18 +78,57 @@ def double_conv_layer(x, filter_shape,
         filter_size, filter_size, filter_depth, num_filters = filter_shape        
         filter_offset = filter_size - kernel_size + 1
         n_times = filter_offset ** 2
+        print " n_times", n_times
         W_effective_shape = [kernel_size, kernel_size, filter_depth, num_filters * n_times]
 
         # Initalize meta filters
         W_meta = init_weights(filter_shape, name="W_meta")
 
+        ###############
+        # display first filter
+        # one image per depth
+        W_meta_1st_filter = tf.transpose(W_meta, [2, 0, 1, 3])
+        W_meta_1st_filter = tf.slice(W_meta_1st_filter, begin=[0, 0, 0, 0],
+                                     size=[filter_depth, filter_size, filter_size, 1])
+        tf.summary.image("W_meta", W_meta_1st_filter, max_outputs=1)
+        ###############
+
+
         # First convolution : extract effective filters
         extractor = build_extractor(W_effective_shape)
+
+        ##############
+        # nb_extractors = kernel_size*kernel_size*filter_depth
+        # extractor_re = tf.transpose(extractor, [2, 0, 1, 3])
+        # for e_idx in range(nb_extractors):
+        #     e_filter = tf.slice(extractor_re, begin=[0, 0, 0, e_idx],
+        #                         size=[filter_depth, kernel_size, kernel_size, 1])
+        #     tf.summary.image("extractor_{}".format(e_idx), e_filter) #, max_outputs=filter_depth)
+
+        #############
+
+
+
+
         W_meta = filter_to_image(W_meta)
+
         W_effective = tf.nn.conv2d(W_meta, extractor, strides=[1,1,1,1], padding='VALID')
+
 
         # Second convolution : convolve effective filters to images
         W_effective = image_to_filter(W_effective, W_effective_shape)
+
+        ############
+        # display the extracted filters from the first meta filter
+        nb_filters = n_times
+        W_eff_re = tf.transpose(W_effective, [2, 0, 1, 3])
+        for w_idx in range(nb_filters):
+            w_filter = tf.slice(W_eff_re, begin=[0, 0, 0, w_idx],
+                                size=[W_effective_shape[2], W_effective_shape[0], W_effective_shape[1], 1])
+            tf.summary.image("W_eff_{}".format(w_idx), w_filter, max_outputs=1)
+
+        ############
+
         output = tf.nn.conv2d(x, W_effective, strides=[1, 1, 1, 1], padding=padding)
         
         # Add bias

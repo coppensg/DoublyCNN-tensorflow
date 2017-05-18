@@ -55,7 +55,7 @@ def load_normalize_data(dataset):
     return [(train_x, train_y, train_num), (valid_x, valid_y, valid_num), (test_x, test_y, test_num), num_class, image_shape]
 
 
-def update_model(sess, model, inputs, target, batch_size, n_batch, keep_prob=1.):
+def update_model(sess, model, inputs, target, batch_size, n_batch, keep_prob=1., merged=None, img_writer=None,epoch=None):
     '''
     Batch processing for the forward and back-prop
     :param sess: current tensorflow session
@@ -71,7 +71,11 @@ def update_model(sess, model, inputs, target, batch_size, n_batch, keep_prob=1.)
                 model.targets: target_batch,
                 model.keep_prob: keep_prob}
 
-        _ = sess.run([model.train_op], feed)
+        if merged != None:
+            summary, _ = sess.run([merged, model.train_op], feed)
+            img_writer.add_summary(summary, epoch)
+        else:
+            _ = sess.run([model.train_op], feed)
 
 def fwd_eval(sess, model, inputs, target, batch_size, n_batch):
     '''
