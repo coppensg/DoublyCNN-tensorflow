@@ -18,7 +18,7 @@ mkdir -p ${log_dir}
 
 batch_size=200
 train_epochs=150
-patience=5
+patience=3
 lr=0.001
 learning_decay=0.5
 keep_prob=0.5

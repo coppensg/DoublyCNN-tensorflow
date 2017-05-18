@@ -29,7 +29,7 @@ def parseArgs():
 
     # Model params
     parser.add_argument('-t', '--conv_type', type=str, default='standard')  # standard or double
-    parser.add_argument('-filter_shape', type=Shape, nargs='+', default=[(64, 3, 3), (2, 2), (10,3,3)])
+    parser.add_argument('-filter_shape', type=Shape, nargs='+', default=[(10,3,3)])
     parser.add_argument('-kernel_size', type=int, default=3)
     parser.add_argument('-kernel_pool_size', type=int, default=-1)
 
@@ -79,8 +79,9 @@ def training(sess, model, opt, train, valid, save):
 
     print "Training..."
 
-    train_errors, valid_errors, train_costs, valid_costs = numpy.zeros((train_epochs)), numpy.zeros((train_epochs)),\
-                                                           numpy.zeros((train_epochs)), numpy.zeros((train_epochs))
+    train_errors, valid_errors, train_costs, valid_costs, learning_rates = numpy.zeros((train_epochs)), numpy.zeros((train_epochs)),\
+                                                           numpy.zeros((train_epochs)), numpy.zeros((train_epochs)),\
+                                                           numpy.zeros((train_epochs))
 
     best_valid_err = 1.
     best_valid_epoch = 0
@@ -119,12 +120,13 @@ def training(sess, model, opt, train, valid, save):
         va_appender(valid_errors, err, epoch, "error")
         va_appender(valid_costs, loss, epoch, "loss")
 
+        current_lr = sess.run(model.lr)
+        tr_appender(learning_rates, current_lr, epoch, 'learning_rate')
 
         # keep best model and reduce learning rate if necessary
-        if valid_errors[-1] <= best_valid_err:
-            best_valid_err = valid_errors[-1]
+        if valid_errors[epoch] <= best_valid_err:
+            best_valid_err = valid_errors[epoch]
             best_valid_epoch = epoch
-            bad_count = 0
             # update the current best model
             save()
         else:
@@ -189,9 +191,12 @@ def main(arg):
 
 if __name__ == '__main__':
     args = parseArgs()
-    main(args)
-
+    
     if args["log"]:
         print ">> tensorboard --logdir={}".format(args['path_log'])
+        
+    main(args)
+
+    
 
 

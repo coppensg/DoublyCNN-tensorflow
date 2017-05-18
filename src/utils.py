@@ -111,3 +111,28 @@ def factory_appender(sess, use_log, log_dir, log_filename):
              summary = tf.Summary(value=[tf.Summary.Value(tag=tag, simple_value=value)])
              writer.add_summary(summary, epoch)
     return appender
+
+
+
+def distord(inputs):
+    num_inputs = inputs.shape[0]
+    inputs = inputs.reshape(inputs.shape[0],3,32,32).transpose(0,2,3,1)
+    
+    padding_fn = lambda x: tf.image.resize_image_with_crop_or_pad(x, 40, 40)
+    random_flip_fn = lambda x: tf.image.random_flip_left_right(x)
+    random_brightness_fn = lambda x: tf.image.random_brightness(x, max_delta=0.3)
+    random_contrast_fn = lambda x: tf.image.random_contrast(x, lower=0.2, upper=1.4)
+
+    distorded = tf.map_fn(padding_fn, inputs)
+    distorded = tf.random_crop(distorded, [num_inputs, 32,32,3])
+    distorded = tf.map_fn(random_flip_fn, distorded)    
+    distorded = tf.map_fn(random_brightness_fn, distorded)
+
+    distorded = tf.map_fn(random_contrast_fn, distorded)
+
+    distorded = tf.minimum(distorded, 1.)
+    distorded = tf.maximum(distorded, 0.)
+
+    distorded = tf.transpose(distorded, perm=[0, 3, 1, 2])
+
+    return tf.reshape(distorded, [-1, 3*32*32])
