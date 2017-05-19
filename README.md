@@ -67,3 +67,19 @@ squeue -u uname_pdc
 scancel jobID
 ```
 
+
+# AWS
+
+```bash
+
+ip_aws=[TO CHANGE] # Ask bruno to launch to machine #west-2.compute.amazonaws.com
+# synchronise local dir to AWS and get back learned weights
+./pdc_script/rsync_aws.sh $ip_aws
+
+# connect with ssh
+ ssh -X -i ~/aws_ssh/projet_dl.pem ubuntu@$ip_aws
+```
+
+
+
+
