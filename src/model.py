@@ -35,7 +35,7 @@ def reshape_after_pooling(I, width, height, num_filters):
 
 def simple_conv_layer(x, filter_shape, strides=[1, 1, 1, 1], padding='SAME', name="CNN2D"):
     # todo voir comment initialiser les params
-    bias_const = 0.1
+    bias_const = 0.
 
     with tf.variable_scope(name):
         # Define weight and bias shapes and initialize them
@@ -55,7 +55,7 @@ def simple_conv_layer(x, filter_shape, strides=[1, 1, 1, 1], padding='SAME', nam
 
 def fully_connected_layer(x, num_class, name="FCL"):
     # todo voir comment initialiser les params
-    bias_const = 0.1
+    bias_const = 0.
     with tf.variable_scope(name):
         dim = x.get_shape()[1].value  # number of channels
         W = init_weights(shape=[dim, num_class], name='W')
@@ -72,7 +72,7 @@ def double_conv_layer(x, filter_shape,
         # filter shape [filter_height, filter_width, in_channels, out_channels]
     with tf.variable_scope(name):
         
-        bias_const = 0.1
+        bias_const = 0.
 
         # Define all shapes        
         filter_size, filter_size, filter_depth, num_filters = filter_shape        
@@ -150,15 +150,19 @@ class Model:
             # Convolutional layer case
             if len(filter_shape[l]) == 3:
                 out_depth, height, width = filter_shape[l]
-                shape = [height, width, in_depth, out_depth]
                 # Double convolution
                 if conv_type == 'double' and filter_shape[l][1] > kernel_size:
                     print "Building double conv layer, shape : " + str(filter_shape[l][1])
+                    shape = [height, width, in_depth, out_depth]
                     self.layers.append(double_conv_layer(self.layers[-1], shape, kernel_size=kernel_size,
                                                          kernel_pool_size=kernel_pool_size, padding='SAME',
                                                          name='DoublyCNN2D_{}'.format(l)))
                 # Simple convolution
                 elif conv_type == 'standard' or (conv_type == 'double' and filter_shape[l][1] <= kernel_size):
+                    if filter_shape[l][1] <= kernel_size:
+                        height, width = kernel_size, kernel_size
+                    shape = [height, width, in_depth, out_depth]
+                    print shape
                     print "Building simple conv layer, shape : " + str(filter_shape[l][1])
                     self.layers.append(simple_conv_layer(self.layers[-1], shape, strides=[1,1,1,1], padding='SAME',
                                                          name='CNN2D_{}'.format(l)))
