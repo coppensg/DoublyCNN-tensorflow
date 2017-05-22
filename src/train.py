@@ -9,27 +9,27 @@ import numpy
 import tensorflow as tf
 
 import utils
-
 from model import Model
 
 
 def Shape(s):
     return tuple(map(int, s.split(',')))
 
+
 def parseArgs():
     parser = argparse.ArgumentParser()
 
     # Code params
-    parser.add_argument('-d',   '--dataset',    type=str, default='cifar10')
-    parser.add_argument('-s',   '--save_dir',   type=str, default='./save')
-    parser.add_argument(        '--load',       action='store_true')
-    parser.add_argument('-m',   '--model_file', type=str, default=None)
-    parser.add_argument(        '--log',        action='store_true')
-    parser.add_argument('-l',   '--path_log',   type=str, default='./logs')
+    parser.add_argument('-d', '--dataset', type=str, default='cifar10')
+    parser.add_argument('-s', '--save_dir', type=str, default='./save')
+    parser.add_argument('--load', action='store_true')
+    parser.add_argument('-m', '--model_file', type=str, default=None)
+    parser.add_argument('--log', action='store_true')
+    parser.add_argument('-l', '--path_log', type=str, default='./logs')
 
     # Model params
     parser.add_argument('-t', '--conv_type', type=str, default='standard')  # standard or double
-    parser.add_argument('-filter_shape', type=Shape, nargs='+', default=[(10,3,3)])
+    parser.add_argument('-filter_shape', type=Shape, nargs='+', default=[(10, 3, 3)])
     parser.add_argument('-kernel_size', type=int, default=3)
     parser.add_argument('-kernel_pool_size', type=int, default=-1)
 
@@ -61,33 +61,30 @@ def training(sess, model, opt, train, valid, save):
     use_log = opt['log']
     path_log = opt['path_log']
     augmentation = opt['augmentation']
-    
+
     if augmentation:
         print 'Applying data augmentation at each epoch'
     else:
         print 'No data augmentation'
 
-
     (train_x, train_y, train_num) = train
     (valid_x, valid_y, valid_num) = valid
 
-    n_train_batches = train_num/ batch_size
-    n_valid_batches = valid_num/ batch_size
+    n_train_batches = train_num / batch_size
+    n_valid_batches = valid_num / batch_size
 
     tr_appender = utils.factory_appender(sess=sess, use_log=use_log, log_dir=path_log, log_filename="train")
     va_appender = utils.factory_appender(sess=sess, use_log=use_log, log_dir=path_log, log_filename="valid")
 
-    print "Training..."
-
-    train_errors, valid_errors, train_costs, valid_costs, learning_rates = numpy.zeros((train_epochs)), numpy.zeros((train_epochs)),\
-                                                           numpy.zeros((train_epochs)), numpy.zeros((train_epochs)),\
-                                                           numpy.zeros((train_epochs))
+    train_errors, valid_errors = numpy.zeros((train_epochs)), numpy.zeros((train_epochs))
+    train_costs, valid_costs = numpy.zeros((train_epochs)), numpy.zeros((train_epochs))
+    learning_rates = numpy.zeros((train_epochs))
 
     best_valid_err = 1.
     best_valid_epoch = 0
     bad_count = 0
 
-    # TODO see if tensorflow use learning rate decay by default
+    print "Training..."
     sess.run(tf.assign(model.lr, lr))
     for epoch in range(train_epochs):
         start = time.time()
@@ -102,26 +99,26 @@ def training(sess, model, opt, train, valid, save):
             tensor_x = utils.distord(train_x)
             train_x = numpy.array(sess.run([tensor_x]))[0]
             end = time.time()
-            print 'data_augmentation/epoch = {:.3f} s'.format(end-beg)
+            print 'data_augmentation/epoch = {:.3f} s'.format(end - beg)
 
         # compute train loss, err and update weights
         utils.update_model(sess=sess, model=model, inputs=train_x, target=train_y,
-                  batch_size=batch_size, n_batch=n_train_batches, keep_prob=keep_prob)
+                           batch_size=batch_size, n_batch=n_train_batches, keep_prob=keep_prob)
 
         # Compute training loss and err
         loss, err = utils.fwd_eval(sess=sess, model=model, inputs=train_x, target=train_y,
-                              batch_size=batch_size, n_batch=n_train_batches)
+                                   batch_size=batch_size, n_batch=n_train_batches)
         tr_appender(train_errors, err, epoch, "error")
         tr_appender(train_costs, loss, epoch, "loss")
 
         # compute validation loss and err
         loss, err = utils.fwd_eval(sess=sess, model=model, inputs=valid_x, target=valid_y,
-                              batch_size=batch_size, n_batch=n_valid_batches)
+                                   batch_size=batch_size, n_batch=n_valid_batches)
         va_appender(valid_errors, err, epoch, "error")
         va_appender(valid_costs, loss, epoch, "loss")
 
         current_lr = sess.run(model.lr)
-        tr_appender(learning_rates, current_lr, epoch, 'learning_rate')
+        tr_appender(learning_rates, current_lr, epoch, "learning_rate")
 
         # keep best model and reduce learning rate if necessary
         if valid_errors[epoch] <= best_valid_err:
@@ -134,21 +131,17 @@ def training(sess, model, opt, train, valid, save):
             bad_count += 1
             if bad_count > patience:
                 print 'Reducing the learning rate..'
-                sess.run(tf.assign(model.lr, model.lr*learning_decay))
+                sess.run(tf.assign(model.lr, model.lr * learning_decay))
                 bad_count = 0
 
         end = time.time()
         print "epoch. {}, train_loss = {:.4f}, valid_loss = {:.4f}," \
               "train_error = {:.4f}, valid_error = {:.4f}, time/epoch = {:.3f} s" \
-            .format(epoch, train_costs[epoch], valid_costs[epoch], train_errors[epoch], valid_errors[epoch], end - start)
+            .format(epoch, train_costs[epoch], valid_costs[epoch], train_errors[epoch],
+                    valid_errors[epoch], end - start)
 
-        # Not useful anymore
-        # # save models
-        # if (epoch%10 == 0) and (epoch>0):
-        #     save()
-
-    print 'Best errors train {:.4f}, valid {:.4f}'.format(train_errors[best_valid_epoch], valid_errors[best_valid_epoch])
-
+    print 'Best errors train {:.4f}, valid {:.4f}'.format(train_errors[best_valid_epoch],
+                                                          valid_errors[best_valid_epoch])
 
 
 def main(arg):
@@ -188,15 +181,10 @@ def main(arg):
         training(sess, model, arg, train, valid, save)
 
 
-
 if __name__ == '__main__':
     args = parseArgs()
-    
+
     if args["log"]:
         print ">> tensorboard --logdir={}".format(args['path_log'])
-        
+
     main(args)
-
-    
-
-

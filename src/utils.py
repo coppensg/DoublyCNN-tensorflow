@@ -12,17 +12,20 @@ def restore_model(saver, session, loadfrom):
     saver.restore(session, loadfrom)
     print "Model restored from " + loadfrom
 
+
 def store_model(saver, session, saveto):
     # Tricky closure
     print saveto
+
     def save(sess=session):
         if saveto is not None:
             save_path = saver.save(sess, saveto)
             print "Model saved to " + save_path
+
     return save
 
-def load_normalize_data(dataset):
 
+def load_normalize_data(dataset):
     if dataset == 'cifar10':
         data_dir = load_data_cifar10.data_dir
         load_data = load_data_cifar10.load_data
@@ -52,7 +55,8 @@ def load_normalize_data(dataset):
     valid_x -= xmean
     test_x -= xmean
 
-    return [(train_x, train_y, train_num), (valid_x, valid_y, valid_num), (test_x, test_y, test_num), num_class, image_shape]
+    return [(train_x, train_y, train_num), (valid_x, valid_y, valid_num),
+            (test_x, test_y, test_num), num_class, image_shape]
 
 
 def update_model(sess, model, inputs, target, batch_size, n_batch, keep_prob=1.):
@@ -72,6 +76,7 @@ def update_model(sess, model, inputs, target, batch_size, n_batch, keep_prob=1.)
                 model.keep_prob: keep_prob}
 
         _ = sess.run([model.train_op], feed)
+
 
 def fwd_eval(sess, model, inputs, target, batch_size, n_batch):
     '''
@@ -105,27 +110,28 @@ def factory_appender(sess, use_log, log_dir, log_filename):
     '''
     if use_log:
         writer = tf.summary.FileWriter(os.path.join(log_dir, log_filename), sess.graph)
+
     def appender(list, value, epoch, tag):
         list[epoch] = value
         if use_log:
-             summary = tf.Summary(value=[tf.Summary.Value(tag=tag, simple_value=value)])
-             writer.add_summary(summary, epoch)
-    return appender
+            summary = tf.Summary(value=[tf.Summary.Value(tag=tag, simple_value=value)])
+            writer.add_summary(summary, epoch)
 
+    return appender
 
 
 def distord(inputs):
     num_inputs = inputs.shape[0]
-    inputs = inputs.reshape(inputs.shape[0],3,32,32).transpose(0,2,3,1)
-    
+    inputs = inputs.reshape(inputs.shape[0], 3, 32, 32).transpose(0, 2, 3, 1)
+
     padding_fn = lambda x: tf.image.resize_image_with_crop_or_pad(x, 40, 40)
     random_flip_fn = lambda x: tf.image.random_flip_left_right(x)
     random_brightness_fn = lambda x: tf.image.random_brightness(x, max_delta=0.3)
     random_contrast_fn = lambda x: tf.image.random_contrast(x, lower=0.2, upper=1.4)
 
     distorded = tf.map_fn(padding_fn, inputs)
-    distorded = tf.random_crop(distorded, [num_inputs, 32,32,3])
-    distorded = tf.map_fn(random_flip_fn, distorded)    
+    distorded = tf.random_crop(distorded, [num_inputs, 32, 32, 3])
+    distorded = tf.map_fn(random_flip_fn, distorded)
     distorded = tf.map_fn(random_brightness_fn, distorded)
 
     distorded = tf.map_fn(random_contrast_fn, distorded)
@@ -135,4 +141,4 @@ def distord(inputs):
 
     distorded = tf.transpose(distorded, perm=[0, 3, 1, 2])
 
-    return tf.reshape(distorded, [-1, 3*32*32])
+    return tf.reshape(distorded, [-1, 3 * 32 * 32])
